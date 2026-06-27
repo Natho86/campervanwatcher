@@ -1,6 +1,7 @@
 """Send push notifications via a self-hosted ntfy.sh server."""
 
 import httpx
+import os
 
 
 def _format_specs(listing: dict) -> str:
@@ -46,8 +47,8 @@ def notify(listing: dict, site: dict, config: dict) -> None:
     }
 
     auth = None
-    username = config.get("ntfy_username")
-    password = config.get("ntfy_password")
+    username = os.environ.get("NTFY_USERNAME")
+    password = os.environ.get("NTFY_PASSWORD")
     if username and password:
         auth = (username, password)
 

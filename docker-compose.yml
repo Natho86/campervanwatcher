@@ -7,6 +7,8 @@ services:
       # Persistent state — on Unraid, change ./data to an absolute path on your array
       # e.g. /mnt/user/appdata/campervanwatcher:/data
       - ./data:/data
+    env_file:
+      - .env
     environment:
       - STATE_FILE=/data/state.json
     # Optional: override the check interval without rebuilding
