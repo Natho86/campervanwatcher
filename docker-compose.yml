@@ -2,6 +2,7 @@ services:
   watcher:
     build: ./watcher
     restart: unless-stopped
+    network_mode: host
     volumes:
       # Persistent state — on Unraid, change ./data to an absolute path on your array
       # e.g. /mnt/user/appdata/campervanwatcher:/data

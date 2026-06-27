@@ -34,13 +34,22 @@ def notify(listing: dict, site: dict, config: dict) -> None:
     specs = _format_specs(listing)
     body = f"[{site_name}]\n{specs}\n{listing['url']}".strip() if specs else f"[{site_name}]\n{listing['url']}"
 
+    # ntfy headers must be ASCII — encode Unicode chars as XML character references
+    safe_title = title[:250].encode("ascii", "xmlcharrefreplace").decode("ascii")
+
     headers = {
-        "Title": title[:250],
+        "Title": safe_title,
         "Priority": "high",
         "Tags": "van,bell",
         "Click": listing["url"],
     }
 
-    with httpx.Client(timeout=15) as client:
+    auth = None
+    username = config.get("ntfy_username")
+    password = config.get("ntfy_password")
+    if username and password:
+        auth = (username, password)
+
+    with httpx.Client(timeout=15, auth=auth) as client:
         resp = client.post(url, content=body.encode(), headers=headers)
         resp.raise_for_status()

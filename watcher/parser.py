@@ -269,15 +269,20 @@ def parse_wix_index(html: str, site: dict) -> list[dict[str, Any]]:
 
         url = urljoin(base_url, href)
 
-        # Find the nearest h2 title sibling or text within the same section
+        # Find the h2 title within the same section, ignoring "SOLD" badges
         title = ""
         section = anchor.find_parent("section")
         if section:
-            h2 = section.select_one("h2.wixui-rich-text__text")
-            if h2:
-                title = _all_text(h2)
+            for h2 in section.select("h2.wixui-rich-text__text"):
+                candidate = _all_text(h2)
+                # Skip pure SOLD badges — real titles contain year or van make
+                if candidate and candidate.upper() not in ("SOLD", "AVAILABLE", ""):
+                    title = candidate
+                    break
         if not title:
-            title = anchor.get_text(strip=True) or url
+            # Fall back to the URL slug, humanised
+            slug = href.rstrip("/").split("/")[-1].replace("-", " ").title()
+            title = slug or url
 
         listing: dict[str, Any] = {"id": url, "url": url, "title": title}
         _enrich_from_text(listing, title)
