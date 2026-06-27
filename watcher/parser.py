@@ -107,6 +107,12 @@ def parse_woocommerce_index(html: str, site: dict) -> list[dict[str, Any]]:
         title = _all_text(link_el)
         listing: dict[str, Any] = {"id": url, "url": url, "title": title}
         _enrich_from_text(listing, title)
+
+        # Thumbnail from the product card image
+        img = card.select_one("img.attachment-woocommerce_thumbnail")
+        if img:
+            listing["image_url"] = img.get("src", "").strip()
+
         listings.append(listing)
 
     return listings
@@ -160,6 +166,13 @@ def parse_esw_index(html: str, site: dict) -> list[dict[str, Any]]:
         title = _all_text(title_el) if title_el else anchor.get("title", "").strip()
 
         listing: dict[str, Any] = {"id": url, "url": url, "title": title}
+
+        # Thumbnail from the card image
+        img = card.select_one("img.little")
+        if img:
+            src = img.get("src", "").strip()
+            if src:
+                listing["image_url"] = urljoin(base_url, src)
 
         # Structured specs available on the index card
         spec_map = _parse_esw_spec_icons(card)
@@ -286,6 +299,14 @@ def parse_wix_index(html: str, site: dict) -> list[dict[str, Any]]:
 
         listing: dict[str, Any] = {"id": url, "url": url, "title": title}
         _enrich_from_text(listing, title)
+
+        # Thumbnail from the section image
+        section = anchor.find_parent("section")
+        if section:
+            img = section.select_one("img[src]")
+            if img:
+                listing["image_url"] = img.get("src", "").strip()
+
         listings.append(listing)
 
     return listings

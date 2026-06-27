@@ -56,6 +56,9 @@ def notify(listing: dict, site: dict, config: dict) -> None:
         "Host": config["ntfy_host"],
     }
 
+    if listing.get("image_url"):
+        headers["Attach"] = listing["image_url"]
+
     auth = None
     username = os.environ.get("NTFY_USERNAME")
     password = os.environ.get("NTFY_PASSWORD")
