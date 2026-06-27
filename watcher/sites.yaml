@@ -1,4 +1,5 @@
 ntfy_server: "http://100.70.22.84"
+ntfy_host: "ntfy.taildbe21.ts.net"
 ntfy_topic: "campervans"
 check_interval_minutes: 30
 

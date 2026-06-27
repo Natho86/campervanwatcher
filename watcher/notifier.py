@@ -42,6 +42,7 @@ def notify(listing: dict, site: dict, config: dict) -> None:
         "Priority": "high",
         "Tags": "van,bell",
         "Click": listing["url"],
+        "Host": config["ntfy_host"],
     }
 
     auth = None
