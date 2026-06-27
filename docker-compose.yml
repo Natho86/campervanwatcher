@@ -1,0 +1,12 @@
+services:
+  watcher:
+    build: ./watcher
+    restart: unless-stopped
+    volumes:
+      # Persistent state — on Unraid, change ./data to an absolute path on your array
+      # e.g. /mnt/user/appdata/campervanwatcher:/data
+      - ./data:/data
+    environment:
+      - STATE_FILE=/data/state.json
+    # Optional: override the check interval without rebuilding
+    # command: ["python", "watcher.py"]

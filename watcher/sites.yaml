@@ -1,0 +1,20 @@
+ntfy_server: "https://ntfy.taildbe21.ts.net"
+ntfy_topic: "campervans"
+check_interval_minutes: 30
+
+sites:
+  - name: "Holbrook Customs"
+    url: "https://www.holbrookcustoms.com/campersforsale/"
+    parser: "woocommerce"
+    listing_selector: "li.product"
+    ntfy_topic: "campervans"
+
+  - name: "Endless Summer Wales"
+    url: "https://www.endlesssummerwales.co.uk/used-vans/109/alone_category/49/used-vans"
+    parser: "esw"
+    ntfy_topic: "campervans"
+
+  - name: "T1 Conversions"
+    url: "https://www.t1conversions.com/blank"
+    parser: "wix"
+    ntfy_topic: "campervans"
