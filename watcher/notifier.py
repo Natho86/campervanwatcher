@@ -35,8 +35,18 @@ def notify(listing: dict, site: dict, config: dict) -> None:
     specs = _format_specs(listing)
     body = f"[{site_name}]\n{specs}\n{listing['url']}".strip() if specs else f"[{site_name}]\n{listing['url']}"
 
-    # ntfy headers must be ASCII — encode Unicode chars as XML character references
-    safe_title = title[:250].encode("ascii", "xmlcharrefreplace").decode("ascii")
+    # ntfy headers must be ASCII — replace common Unicode chars with equivalents
+    safe_title = (
+        title
+        .replace("–", "-")   # en dash
+        .replace("—", "-")   # em dash
+        .replace("‘", "'")   # left single quote
+        .replace("’", "'")   # right single quote
+        .replace("“", '"')   # left double quote
+        .replace("”", '"')   # right double quote
+        .replace("£", "GBP ") # £
+        .encode("ascii", "replace").decode("ascii")  # replace any remaining non-ASCII with ?
+    )[:250]
 
     headers = {
         "Title": safe_title,
