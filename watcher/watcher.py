@@ -78,6 +78,12 @@ def check_site(site: dict, config: dict, saved_state: dict) -> dict:
         if listing["id"] not in new_ids:
             continue
 
+        # Skip sold listings — don't waste notifications or rate limit budget
+        title_upper = listing["title"].upper()
+        if "SOLD" in title_upper or listing.get("sold"):
+            log.info("  Skipping (sold): %s", listing["title"])
+            continue
+
         log.info("  New listing: %s", listing["title"])
 
         # Fetch detail page to enrich specs
@@ -87,10 +93,16 @@ def check_site(site: dict, config: dict, saved_state: dict) -> dict:
         except Exception as e:
             log.warning("  Could not fetch detail page for %s: %s", listing["url"], e)
 
+        # Skip if sold status confirmed on detail page
+        if listing.get("sold"):
+            log.info("  Skipping (sold on detail page): %s", listing["title"])
+            continue
+
         # Send notification
         try:
             notifier.notify(listing, site, config)
             log.info("  Notified: %s", listing["title"])
+            time.sleep(2)  # avoid ntfy rate limiting when multiple new listings found
         except Exception as e:
             log.error("  Failed to notify for %s: %s", listing["url"], e)
 
