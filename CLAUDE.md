@@ -43,6 +43,8 @@ data/
 | `woocommerce` | Holbrook Customs | `li.product` cards, title in `h2.woocommerce-loop-product__title` | Specs under `h2` headings → `ul`/`p` siblings |
 | `esw` | Endless Summer Wales | `div.row_auto.VEH-row` cards with icon-based spec divs | `div.vm_mainblock.wrapperSpecifications` key-value rows |
 | `wix` | T1 Conversions | `a[data-testid="linkElement"][href*="/vans-for-sale/"]` links | `font_7` label/value richtext div pairs |
+| `wcc` | Welsh Coast Campers | `article.van` cards with `ul.van-info__specs` structured specs | `div.conversion-items` feature checklist |
+| `wildtracks` | Wild Tracks Campervans | WooCommerce `li.product-grid-view` cards, Avada theme | JSON-LD `Product` schema for specs |
 
 ### Adding a new site
 

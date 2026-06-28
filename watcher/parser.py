@@ -14,6 +14,7 @@ To add a new site type:
   3. Register both in INDEX_PARSERS and DETAIL_ENRICHERS at the bottom.
 """
 
+import json
 import re
 from typing import Any
 from urllib.parse import urljoin
@@ -358,6 +359,180 @@ def enrich_wix_detail(listing: dict[str, Any], html: str, site: dict) -> dict[st
 
 
 # ---------------------------------------------------------------------------
+# Welsh Coast Campers parser — WordPress with custom van post type
+# All specs are structured on the index card; detail page adds feature list.
+# ---------------------------------------------------------------------------
+
+def parse_wcc_index(html: str, site: dict) -> list[dict[str, Any]]:
+    soup = BeautifulSoup(html, "lxml")
+    listings = []
+
+    for card in soup.select("article.van"):
+        anchor = card.select_one('a.button.button--small[href*="/conversions/"]')
+        if not anchor:
+            continue
+
+        url = anchor.get("href", "").strip()
+        if not url:
+            continue
+
+        title_el = card.select_one("h3.van-info__title")
+        title = _all_text(title_el) if title_el else url
+
+        listing: dict[str, Any] = {"id": url, "url": url, "title": title}
+
+        # Price
+        price_el = card.select_one("p.van-info__price")
+        if price_el:
+            listing["price"] = price_el.get_text(strip=True)
+
+        # Structured specs from labelled list items
+        for li in card.select("ul.van-info__specs li"):
+            label_el = li.select_one("span")
+            if not label_el:
+                continue
+            label = label_el.get_text(strip=True).rstrip(":").lower()
+            # Value is the text node after the span
+            value = li.get_text(strip=True).replace(label_el.get_text(strip=True), "").strip()
+            if not value or value in ("-", "TBC", "N/A"):
+                continue
+            if "engine" in label and not listing.get("engine"):
+                listing["engine"] = value
+            elif "trans" in label and not listing.get("transmission"):
+                listing["transmission"] = value
+            elif "fuel" in label and not listing.get("fuel"):
+                listing["fuel"] = value
+            elif "mileage" in label and not listing.get("mileage"):
+                listing["mileage"] = value + " miles"
+            elif "reg" in label and not listing.get("registration"):
+                listing["registration"] = value
+
+        # Year from title
+        _enrich_from_text(listing, title)
+
+        # Thumbnail
+        img = card.select_one("div.van-image img")
+        if img:
+            listing["image_url"] = img.get("src", "").strip()
+
+        listings.append(listing)
+
+    return listings
+
+
+def enrich_wcc_detail(listing: dict[str, Any], html: str, site: dict) -> dict[str, Any]:
+    soup = BeautifulSoup(html, "lxml")
+
+    # Feature checklist items (e.g. "Pop Top Roof", "Tailgate", "4 Berth")
+    features = [
+        _all_text(span)
+        for span in soup.select("div.conversion-items ul.grid li span")
+        if span.get_text(strip=True)
+    ]
+    if features:
+        listing["specs_raw"] = features
+        # Check for tailgate in features
+        for f in features:
+            if not listing.get("tailgate") and re.search(r"tailgate|barn door", f, re.IGNORECASE):
+                listing["tailgate"] = f
+
+    return listing
+
+
+# ---------------------------------------------------------------------------
+# Wild Tracks Campervans parser — WooCommerce + Avada theme
+# Specs are in JSON-LD schema on the detail page; index has price + sold badge.
+# ---------------------------------------------------------------------------
+
+def parse_wildtracks_index(html: str, site: dict) -> list[dict[str, Any]]:
+    soup = BeautifulSoup(html, "lxml")
+    listings = []
+
+    for card in soup.select("li.product-grid-view.product"):
+        anchor = card.select_one("h4.fusion-rollover-title a.fusion-rollover-title-link")
+        if not anchor:
+            continue
+
+        url = anchor.get("href", "").strip()
+        if not url:
+            continue
+
+        title = _all_text(anchor)
+        listing: dict[str, Any] = {"id": url, "url": url, "title": title}
+
+        # Price
+        price_el = card.select_one("span.woocommerce-Price-amount")
+        if price_el:
+            listing["price"] = "£" + price_el.get_text(strip=True).replace("£", "").strip()
+
+        # Sold badge
+        sold_el = card.select_one(".fusion-out-of-stock .fusion-position-text")
+        if sold_el and "sold" in sold_el.get_text(strip=True).lower():
+            listing["sold"] = True
+
+        # Thumbnail — try data-orig-src first (lazy-load), fall back to src
+        img = card.select_one("img.wp-post-image")
+        if img:
+            listing["image_url"] = (
+                img.get("data-orig-src") or img.get("src", "")
+            ).strip()
+
+        _enrich_from_text(listing, title)
+        listings.append(listing)
+
+    return listings
+
+
+def enrich_wildtracks_detail(listing: dict[str, Any], html: str, site: dict) -> dict[str, Any]:
+    soup = BeautifulSoup(html, "lxml")
+
+    # Parse JSON-LD schema — description field contains newline-separated specs
+    for script in soup.select('script[type="application/ld+json"]'):
+        try:
+            data = json.loads(script.string or "")
+        except (json.JSONDecodeError, AttributeError):
+            continue
+        if data.get("@type") != "Product":
+            continue
+
+        desc = data.get("description", "")
+        for line in desc.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if not listing.get("mileage") and re.search(r"\d+\s*mi", line, re.IGNORECASE):
+                listing["mileage"] = line
+            elif not listing.get("transmission") and re.search(r"\b(automatic|manual|dsg)\b", line, re.IGNORECASE):
+                listing["transmission"] = line.title()
+            elif not listing.get("fuel") and re.search(r"\b(diesel|petrol|electric|hybrid)\b", line, re.IGNORECASE):
+                listing["fuel"] = line.title()
+            elif not listing.get("engine") and re.search(r"\d+\.\d+", line):
+                listing["engine"] = line
+
+        # Price and image from schema if not already set
+        offer = (data.get("offers") or [{}])
+        if isinstance(offer, list):
+            offer = offer[0] if offer else {}
+        if not listing.get("price") and offer.get("price"):
+            listing["price"] = f"£{offer['price']}"
+        if not listing.get("image_url") and data.get("image"):
+            listing["image_url"] = data["image"]
+
+        break  # only need first Product schema
+
+    # Tailgate and other features from the free-text description divs
+    feature_divs = soup.select("div.fusion-content-tb div")
+    features = [d.get_text(strip=True).lstrip("–").strip() for d in feature_divs if d.get_text(strip=True)]
+    if features:
+        listing.setdefault("specs_raw", features)
+        for f in features:
+            if not listing.get("tailgate") and re.search(r"tailgate|barn door", f, re.IGNORECASE):
+                listing["tailgate"] = f.title()
+
+    return listing
+
+
+# ---------------------------------------------------------------------------
 # Parser registry — add new parser types here
 # ---------------------------------------------------------------------------
 
@@ -365,12 +540,16 @@ INDEX_PARSERS = {
     "woocommerce": parse_woocommerce_index,
     "esw": parse_esw_index,
     "wix": parse_wix_index,
+    "wcc": parse_wcc_index,
+    "wildtracks": parse_wildtracks_index,
 }
 
 DETAIL_ENRICHERS = {
     "woocommerce": enrich_woocommerce_detail,
     "esw": enrich_esw_detail,
     "wix": enrich_wix_detail,
+    "wcc": enrich_wcc_detail,
+    "wildtracks": enrich_wildtracks_detail,
 }
 
 

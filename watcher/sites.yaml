@@ -2,6 +2,7 @@ ntfy_server: "http://100.70.22.84"
 ntfy_host: "ntfy.taildbe21.ts.net"
 ntfy_topic: "campervans"
 check_interval_minutes: 30
+max_price: 50000
 
 sites:
   - name: "Holbrook Customs"
@@ -18,4 +19,14 @@ sites:
   - name: "T1 Conversions"
     url: "https://www.t1conversions.com/blank"
     parser: "wix"
+    ntfy_topic: "campervans"
+
+  - name: "Welsh Coast Campers"
+    url: "https://www.welshcoastcampers.co.uk/conversions_category/vans-for-sale/"
+    parser: "wcc"
+    ntfy_topic: "campervans"
+
+  - name: "Wild Tracks Campervans"
+    url: "https://wildtrackscampervans.co.uk/vw-campervans-for-sale/"
+    parser: "wildtracks"
     ntfy_topic: "campervans"

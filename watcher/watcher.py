@@ -9,6 +9,7 @@ Usage:
 
 import argparse
 import logging
+import re
 import time
 from pathlib import Path
 
@@ -97,6 +98,14 @@ def check_site(site: dict, config: dict, saved_state: dict) -> dict:
         if listing.get("sold"):
             log.info("  Skipping (sold on detail page): %s", listing["title"])
             continue
+
+        # Skip if over the price cap
+        max_price = config.get("max_price")
+        if max_price and listing.get("price"):
+            price_digits = re.sub(r"[^\d]", "", listing["price"])
+            if price_digits and int(price_digits) > max_price:
+                log.info("  Skipping (over price cap £%s): %s", max_price, listing["title"])
+                continue
 
         # Send notification
         try:
